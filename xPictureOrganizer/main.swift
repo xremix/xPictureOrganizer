@@ -16,18 +16,18 @@ func extractCreationDate(from exifData: [String: Any]) -> Date? {
 
 func extractGPSData(from exifData: [String: Any]) -> CLLocationCoordinate2D? {
     guard
-        let gpsInfo = exifData[kCGImagePropertyGPSDictionary as String] as? [String: Any],
-        let latitudeRef = gpsInfo[kCGImagePropertyGPSLatitudeRef as String] as? String,
-        let longitudeRef = gpsInfo[kCGImagePropertyGPSLongitudeRef as String] as? String,
-        let latitudeArray = gpsInfo[kCGImagePropertyGPSLatitude as String] as? [Double],
-        let longitudeArray = gpsInfo[kCGImagePropertyGPSLongitude as String] as? [Double]
+//        let gpsInfo = exifData[kCGImagePropertyGPSDictionary as String] as? [String: Any],
+        let latitudeRef = exifData[kCGImagePropertyGPSLatitudeRef as String] as? String,
+        let longitudeRef = exifData[kCGImagePropertyGPSLongitudeRef as String] as? String,
+        var latitude = exifData[kCGImagePropertyGPSLatitude as String] as? Double,
+        var longitude = exifData[kCGImagePropertyGPSLongitude as String] as? Double
     else {
         return nil
     }
     
-    var latitude = latitudeArray[0] + latitudeArray[1]/60 + latitudeArray[2]/3600
-    var longitude = longitudeArray[0] + longitudeArray[1]/60 + longitudeArray[2]/3600
-    
+//    var latitude = latitudeArray[0] + latitudeArray[1]/60 + latitudeArray[2]/3600
+//    var longitude = longitudeArray[0] + longitudeArray[1]/60 + longitudeArray[2]/3600
+//    
     if latitudeRef == "S" {
         latitude = -latitude
     }
@@ -47,16 +47,20 @@ func reverseGeocode(location: CLLocationCoordinate2D) -> String? {
 
     let semaphore = DispatchSemaphore(value: 0)
 
-    geocoder.reverseGeocodeLocation(location) { (placemarks, error) in
-        defer { semaphore.signal() }
+    DispatchQueue.global().async {
+        print("x")
+        geocoder.reverseGeocodeLocation(location) { (placemarks, error) in
+            print("y")
+            defer { semaphore.signal() }
 
-        if let error = error {
-            print("Reverse geocoding error: \(error.localizedDescription)")
-            return
-        }
+            if let error = error {
+                print("Reverse geocoding error: \(error.localizedDescription)")
+                return
+            }
 
-        if let placemark = placemarks?.first {
-            locationName = placemark.name ?? placemark.locality ?? placemark.subLocality ?? placemark.administrativeArea ?? placemark.country
+            if let placemark = placemarks?.first {
+                locationName = placemark.name ?? placemark.locality ?? placemark.subLocality ?? placemark.administrativeArea ?? placemark.country
+            }
         }
     }
 
@@ -64,6 +68,7 @@ func reverseGeocode(location: CLLocationCoordinate2D) -> String? {
 
     return locationName
 }
+
 
 func organizeImages(sourceFolder: String, destinationFolder: String) {
     var previousLocation: CLLocationCoordinate2D?
@@ -83,7 +88,9 @@ func organizeImages(sourceFolder: String, destinationFolder: String) {
                 let imageSource = CGImageSourceCreateWithURL(fileURL as CFURL, imageSourceOptions)
                 let imageProperties = CGImageSourceCopyPropertiesAtIndex(imageSource!, 0, nil) as? [String: Any]
 
-                if let exifData = imageProperties?[kCGImagePropertyExifDictionary as String] as? [String: Any] {
+//                if let exifData = imageProperties?[kCGImagePropertyExifDictionary as String] as? [String: Any] {
+                    
+                if let exifData = imageProperties?["{GPS}"] as? [String: Any] {
                     let gpsData = extractGPSData(from: exifData)
 
                     if let gpsData = gpsData {
